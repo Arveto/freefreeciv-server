@@ -1,0 +1,18 @@
+{
+  "name": "FreeFreeCiv-CompanionApp",
+  "version": "1.0.0",
+  "description": "A JS companion app for FreeFreeCiv:The Game",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "",
+    "ws": "",
+    "socket.io": "",
+    "socket.io-client": "",
+    "websocket": ""
+  },
+  "author": "terrus",
+  "license": "Unlicense"
+}
