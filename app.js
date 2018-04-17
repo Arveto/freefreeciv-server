@@ -2,10 +2,24 @@
 var app = require('express')();
 var server = require('http').Server(app);
 var io = require('socket.io')(server);
+var roomSystem = require('./rooms.js')
 
-// enum eventType= {MOVEMENT, ATTACK, CREATE_BARRACK, CREATE_PEASANT, CREATE_SOLDIER, HARVEST, END_TURN, PLAYER_LEAVE, PLAYER_JOIDNED_LOBBY, PLAYER_JOIN_GAME, MESSAGE}
+var eventType= {MOVEMENT: 1,
+    ATTACK: 2,
+    CREATE_BARRACK: 3,
+    CREATE_PEASANT: 4,
+    CREATE_SOLDIER: 5,
+    HARVEST: 6,
+    END_TURN: 7,
+    PLAYER_LEAVE_GAME: 8,
+    PLAYER_JOIN_ROOM: 9,
+    PLAYER_LEAVE_ROOM: 10,
+    GAME_START: 11,
+    MESSAGE: 12,
+    ROOM_CREATION: 13,
+    DESTROY_ROOM: 14};
 
-
+    //***Mobile app test***
 app.use(require('express').static(__dirname + '/public'));
 
 app.get('/', (req, res) => {
@@ -27,6 +41,31 @@ app.get('/', (req, res) => {
 
 
 
+
+    //***Game server***
+
+var users = new Array();
+var rooms = new Array();
+
+    //Testing room
+let user = new roomSystem.User('alberto', false, true, 0, '');
+let user1 = new roomSystem.User('ronaldWeasley', false, true, -1, '');
+let user2 = new roomSystem.User('chuckNorris', false, true, -1, '');
+
+users.push(user);
+users.push(user1);
+users.push(user2);
+
+
+rooms.push(new roomSystem.Room(0, "Ce genre de room", []));
+
+rooms[0].addPlayer(users[0].pseudo, 0, false, false);
+rooms[0].addPlayer(users[1].pseudo, 1, false, false);
+//rooms[0].addPlayer(users[2].pseudo, 2, false, false);
+rooms[0].players[0].isHost = true;
+
+
+    //Socket.io (for mobile users)
 io.sockets.on('connection', function (socket) {
   console.log('socketio connected');
   socket.emit('oiu', 'oiaezr: dze');
@@ -37,39 +76,66 @@ io.sockets.on('connection', function (socket) {
 });
 
 
+
+    //Vanilla websockets (for desktop users)
 const WebSocketServer = require('ws').Server;
 const wss = new WebSocketServer({server: server, port: 8080});
 
-let player = {"pseudo": "alberto", "slot":1, "isAIControlled":0};
-let player1 = {"pseudo": "ronaldWeasley", "slot":2, "isAIControlled":0};
-let player2 = {"pseudo": "chuckNorris", "slot":3, "isAIControlled":0};
+wss.broadcast = function broadcast(msg) {
+   console.log(msg);
+   wss.clients.forEach(function each(client) {
+       client.send(msg);
+    });
+};
 
 
   //GAME INNNER EVENTS
 wss.on('connection', function(ws) {
-  console.log('copnnectino');
-  ws.on('message', function(data, flags) {
-    console.log("[data]> " +data);
+console.log('connection');
+ws.on('message', function(data, flags) {
+    console.log("[data]> " +data+"\n");
 
 
     switch (data){
-      case 'roomsRequest':
-        ws.send('{"nRooms": 2, "rooms": [{"name": "roomName", "nPlayers": 2}, {"name": "roomName2", "nPlayers": 42}]}')
-        break;
+        case 'roomsRequest':{
+            var roomsData = new Array();
+            for(let i=0; i<rooms.length; i++){
+                roomsData.push({name: rooms[i].name, nPlayers: rooms[i].players.length});
+            }
 
-      default:
-        data = JSON.parse(data);
+            let roomsList = {nRooms : rooms.length, rooms: roomsData};
+            ws.send(JSON.stringify(roomsList));
+        }break;
 
-        switch (data.type){
-          case 8:
-            ws.send('{"type":9, "roomId":42}');
-            break;
-          case 9:
-            console.log("envent "+data.type);
-            ws.send('{"nPlayers":2, "players": [{"pseudo":"'+player.pseudo+'", "slot":'+player.slot+', "isAIControlled":'+player.isAIControlled+'}, {"pseudo":"'+player1.pseudo+'", "slot":'+player1.slot+', "isAIControlled":'+player1.isAIControlled+'}]}');
-            setTimeout(function () {
-              ws.send('{"type":12}');
-            }, 8000);
+
+        default:{
+            data = JSON.parse(data);
+
+            switch (data.type){
+                case eventType.PLAYER_JOIN_ROOM:{
+                    rooms[data.roomId].addPlayer(data.playerInfos.pseudo, rooms[data.roomId].players.length, false, false);
+
+                    //Broadcasts info about the new room state
+                    let roomInfos = {roomId: data.roomId, nPlayers: rooms[data.roomId].players.length, players: rooms[data.roomId].players};
+                    wss.broadcast(JSON.stringify(roomInfos));
+
+                    //Notice to refresh the lobby
+                    let joinRoomNotice = {type: eventType.PLAYER_JOIN_ROOM, roomId: data.roomId};
+                    wss.broadcast(JSON.stringify(joinRoomNotice));
+                }break;
+
+                case eventType.PLAYER_LEAVE_ROOM:{
+                    rooms[data.roomId].removePlayer(data.slot);
+
+                    //Broadcasts info about the new room state
+                    let roomInfos = {roomId: data.roomId, nPlayers: rooms[data.roomId].players.length, players: rooms[data.roomId].players};
+                    wss.broadcast(JSON.stringify(roomInfos));
+
+                    //Notice to refresh the lobby
+                    let leaveRoomNotice = {type: eventType.PLAYER_LEAVE_ROOM, roomId: data.roomId};
+                    wss.broadcast(JSON.stringify(leaveRoomNotice));
+                }break;
+            }
         }
     }
 
@@ -82,7 +148,9 @@ wss.on('connection', function(ws) {
     //     client.send(data);
     //   }
     // });
-    io.sockets.emit(data);
+
+    //XXX Uncomment afterwards
+    //io.sockets.emit(data);
 
 
     // ws.send('close');
@@ -95,4 +163,5 @@ wss.on('connection', function(ws) {
   });
 });
 
-server.listen(80);
+//Back to 80
+server.listen(8079);
