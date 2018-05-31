@@ -43,7 +43,7 @@ rooms[0].players[0].isHost = true;
 
     //Socket.io (for mobile users)
 io.sockets.on('connection', function (socket) {
-  console.log('socketio connected');
+  console.log('[COMPANION] new connection : ' + socket.id);
   socket.emit('oiu', 'oiaezr: dze');
 
   socket.on('joinRoom', (id) => {
