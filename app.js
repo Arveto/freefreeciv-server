@@ -1,10 +1,10 @@
 
-var app = require('express')();
-var server = require('http').Server(app);
-var io = require('socket.io')(server);
-var roomSystem = require('./rooms.js')
+const app = require('express')();
+const server = require('http').Server(app);
+const io = require('socket.io')(server);
+const roomSystem = require('./rooms.js')
 
-var eventType= {MOVEMENT: 1,
+const eventType= {MOVEMENT: 1,
     ATTACK: 2,
     CREATE_BARRACK: 3,
     CREATE_PEASANT: 4,
@@ -19,30 +19,6 @@ var eventType= {MOVEMENT: 1,
     ROOM_CREATION: 13,
     DESTROY_ROOM: 14};
 
-    //***Mobile app test***
-app.use(require('express').static(__dirname + '/public'));
-
-app.get('/', (req, res) => {
-  console.log("oiu");
-    res.sendFile(__dirname + '/public/game.html');
-  })
-  .get('/login', (req, res) => {
-    res.sendFile(__dirname + '/p  ublic/login.html');
-  })
-  .get('/roomList', (req, res) => {
-    res.sendFile(__dirname + '/public/roomList.html');
-  })
-  .get('/game', (req, res) => {
-    res.sendFile(__dirname + '/public/game.html');
-  })
-  .get('/aze', (req, res) => {
-    res.sendFile(__dirname + '/public/aze.html')
-  })
-
-
-
-
-    //***Game server***
 
 var users = new Array();
 var rooms = new Array();
@@ -70,9 +46,10 @@ io.sockets.on('connection', function (socket) {
   console.log('socketio connected');
   socket.emit('oiu', 'oiaezr: dze');
 
-  socket.on('slt', ( data)=> {
-    console.log(data);
-  })
+  socket.on('joinRoom', (id) => {
+    console.log("[COMPANION] : joined room " + id);
+    wss.broadcast('') //XXX
+  });
 });
 
 
@@ -142,13 +119,6 @@ ws.on('message', function(data, flags) {
     // ws.send('{"type":9, "roomId": 0}');
 
 
-
-    // wss.clients.forEach(function each(client) {
-    //   if (client !== ws && client.readyState === WebSocket.OPEN) {
-    //     client.send(data);
-    //   }
-    // });
-
     //XXX Uncomment afterwards
     //io.sockets.emit(data);
 
@@ -163,5 +133,4 @@ ws.on('message', function(data, flags) {
   });
 });
 
-//Back to 80
-server.listen(8079);
+server.listen(4242);
