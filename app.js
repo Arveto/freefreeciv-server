@@ -44,14 +44,17 @@ rooms[0].players[0].isHost = true;
     //Socket.io (for mobile users)
 io.sockets.on('connection', function (socket) {
   console.log('[COMPANION] new connection : ' + socket.id);
-  socket.emit('oiu', 'oiaezr: dze');
-
+  socket.emit('connected', {"data": "YEAAAAH"});
+    
   socket.on('joinRoom', (id) => {
     console.log("[COMPANION] : joined room " + id);
     wss.broadcast('') //XXX
   });
-});
 
+  socket.on("disconnect", () => {
+    console.log("disconnection");
+  });
+});
 
 
     //Vanilla websockets (for desktop users)
