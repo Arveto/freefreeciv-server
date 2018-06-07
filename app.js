@@ -60,6 +60,11 @@ io.sockets.on('connection', function (socket) {
   socket.on("disconnect", () => {
     console.log("disconnection");
   });
+    
+  socket.on("*",function(event,data) {
+    console.log('[Event not handeled] : '+ event);
+    console.log(data);
+  });
 });
 
 
