@@ -20,8 +20,8 @@ const eventType= {MOVEMENT: 1,
     DESTROY_ROOM: 14};
 
 
-var users = new Array();
-var rooms = new Array();
+var users = [];
+var rooms = [];
 
     //Testing room
 let user = new roomSystem.User('alberto', false, true, 0, '');
