@@ -43,24 +43,43 @@ rooms[0].players[0].isHost = true;
 
     //Socket.io (for mobile users)
 io.sockets.on('connection', function (socket) {
+  
+    //UTILS
   console.log('[COMPANION] new connection : ' + socket.id);
-  socket.emit('connected', {"data": "YEAAAAH"});
-    
-  socket.on('joinRoom', (id) => {
-    console.log("[COMPANION] : joined room " + id);
-    wss.broadcast('') //XXX
+  socket.emit('connected');
+  
+  socket.on("disconnect", () => {
+    console.log("disconnection");
   });
     
-    //XXX : dirty broadcast to all
+    //ROOM REQUEST
+  socket.on('roomsResquest', ()=>{
+    rooms.forEach((room)=>{
+      socket.emit('newRoom', {'name': room.name, 'id': room.id, 'players': room.players});
+    });
+  });
+  
+  socket.on('joinRoom', (data) => {
+    console.log("[COMPANION] "+data.pseudo+"joined room n" + data.id);
+    rooms[data.id].addPlayer(data.pseudo, rooms[id].players.length, false);
+    wss.broadcast(''); //XXX
+  });
+  
+  socket.on('createRoom', (room)=>{
+    console.log("[COMPANION] new Room : " + room.name);
+    rooms.push(new roomSystem.Room(rooms.length, room.name, []));
+    rooms[rooms.length-1].addPlayer(room.admin, 0, false);
+		
+		socket.broadcast.emit('newRoom', {'name': rooms[rooms.length-1].name, 'id': rooms[rooms.length-1].id, 'players': rooms[rooms.length-1].players});
+  })
+    
+    //ROOM CHAT
   socket.on('message', (mesg)=>{
     console.log('new message from : ' + mesg.sender + ' to room : ' + mesg.room);
     socket.broadcast.emit('message', {'content': mesg.content, 'playerColor': mesg.sender});
   });
 
-  socket.on("disconnect", () => {
-    console.log("disconnection");
-  });
-    
+  
   socket.on("*",function(event,data) {
     console.log('[Event not handeled] : '+ event);
     console.log(data);
