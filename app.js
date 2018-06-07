@@ -50,6 +50,12 @@ io.sockets.on('connection', function (socket) {
     console.log("[COMPANION] : joined room " + id);
     wss.broadcast('') //XXX
   });
+    
+    //XXX : dirty broadcast to all
+  socket.on('message', (mesg)=>{
+    console.log('new message from : ' + mesg.sender + 'to room : ' + mesg.room);
+    socket.broadcast.emit('message', mesg);
+  });
 
   socket.on("disconnect", () => {
     console.log("disconnection");
