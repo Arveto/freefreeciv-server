@@ -40,50 +40,97 @@ rooms[0].addPlayer(users[1].pseudo, 1, false, false);
 //rooms[0].addPlayer(users[2].pseudo, 2, false, false);
 rooms[0].players[0].isHost = true;
 
-
-    //Socket.io (for mobile users)
+		//Socket.io (for mobile users)
 io.sockets.on('connection', function (socket) {
-  
-    //UTILS
-  console.log('[COMPANION] new connection : ' + socket.id);
-  socket.emit('connected');
-  
-  socket.on("disconnect", () => {
-    console.log("disconnection");
-  });
-    
-    //ROOM REQUEST
-  socket.on('roomsResquest', ()=>{
-    rooms.forEach((room)=>{
-      socket.emit('newRoom', {'name': room.name, 'id': room.id, 'players': room.players});
-    });
-  });
-  
-  socket.on('joinRoom', (data) => {
-    console.log("[COMPANION] "+data.pseudo+"joined room n" + data.id);
-    rooms[data.id].addPlayer(data.pseudo, rooms[id].players.length, false);
-    wss.broadcast(''); //XXX
-  });
-  
-  socket.on('createRoom', (room)=>{
-    console.log("[COMPANION] new Room : " + room.name);
-    rooms.push(new roomSystem.Room(rooms.length, room.name, []));
-    rooms[rooms.length-1].addPlayer(room.admin, 0, false);
+	let currentRoom = [];
+		//UTILS
+	console.log('[COMPANION] new connection : ' + socket.id);
+	socket.emit('connected');
+	
+	socket.on("disconnect", () => {
+    if (currentRoom[0]){
+      console.log("[COMPANION] disconnection");
+      console.log("[COMPANION] "+currentRoom[1]+"lived room n" + currentRoom[0]);
+      rooms[currentRoom[0]].removePlayer(rooms[currentRoom[0]].players.indexOf(currentRoom[1]));
+      socket.broadcast.emit('incrementRoom', {'roomId': currentRoom[0], 'value': rooms[currentRoom[0]].players.length, 'players': rooms[currentRoom[0]].players});
+      wss.broadcast(''); //XXX
+    }
+	});
 		
-		socket.broadcast.emit('newRoom', {'name': rooms[rooms.length-1].name, 'id': rooms[rooms.length-1].id, 'players': rooms[rooms.length-1].players});
-  })
+		//ROOM REQUEST
+	socket.on('roomsResquest', ()=>{
+		rooms.forEach((room)=>{
+			socket.emit('newRoom', {'name': room.name, 'id': room.id, 'players': room.players.length});
+		});
+	});
+	
+	socket.on('joinRoom', (data) => {
+    currentRoom[0] = data.roomId; currentRoom[1] = data.pseudo;
     
-    //ROOM CHAT
-  socket.on('message', (mesg)=>{
-    console.log('new message from : ' + mesg.sender + ' to room : ' + mesg.room);
-    socket.broadcast.emit('message', {'content': mesg.content, 'playerColor': mesg.sender});
-  });
+		console.log("[COMPANION] "+data.pseudo+" joined room n" + data.roomId);
+		console.log(rooms[data.roomId])
+		rooms[data.roomId].addPlayer(data.pseudo, rooms[data.roomId].players.length, false, (data.pseudo == rooms[data.roomId].players[0].name));
+		
+			//ROOM SELECTION
+		socket.broadcast.emit('incrementRoom', {'roomId': data.roomId, 'value': rooms[data.roomId].players.length, 'players': rooms[data.roomId].players});
+		wss.broadcast(''); //XXX
+		
+			//GAME
+		socket.broadcast.emit('newPlayer', {'room': data.roomId, 'pseudo': data.pseudo});
+		
+			//SELF
+		rooms[data.roomId].players.forEach((player)=>{
+			socket.emit('newPlayer', {'room': data.roomId, 'player': player});
+		})
+	});
+	
+	socket.on('leaveRoom', (data)=>{
+		console.log("[COMPANION] "+data.pseudo+"lived room n " + data.roomId);
+		rooms[data.rooId].removePlayer(rooms[data.roomId].players.indexOf(data.pseudo));
+		socket.broadcast.emit('incrementRoom', {'roomId': data.roomId, 'value': rooms[data.roomId].players.length, 'players': rooms[data.roomId].players});
+		wss.broadcast(''); //XXX
+	});
+	
+	socket.on('createRoom', (room)=>{
+		console.log("[COMPANION] new Room : " + room.name);
+		rooms.push(new roomSystem.Room(rooms.length, room.name, []));
+		//rooms[rooms.length-1].addPlayer(room.admin, 0, false, true);
+    
+		socket.emit("youAreAdmin", {'roomId': rooms.length-1});
+    console.log('ROOM ' + rooms.length-1 + ' CREATED')
+    
+    currentRoom[0] = rooms.length-1; currentRoom[1] = room.admin;
+    
+		console.log("[COMPANION] "+room.admin+" joined room n" + rooms.length-1);
+		console.log(rooms[rooms.length-1])
+		rooms[rooms.length-1].addPlayer(room.admin, rooms[rooms.length-1].players.length, false, true);
+		
+			//ROOM SELECTION
+		socket.broadcast.emit('incrementRoom', {'roomId': rooms.length-1, 'value': 1, 'players': 1});
+		wss.broadcast(''); //XXX
+		
+			//SELF
+		rooms[rooms.length-1].players.forEach((player)=>{
+			socket.emit('newPlayer', {'room': rooms.length-1, 'player': player});
+		})
+	})
+		
+		//ROOM CHAT
+	socket.on('message', (mesg)=>{
+		console.log('new message from : ' + mesg.sender + ' to room : ' + mesg.room);
+		socket.broadcast.emit('message', {'content': mesg.content, 'playerColor': mesg.sender});
+	});	
 
-  
-  socket.on("*",function(event,data) {
-    console.log('[Event not handeled] : '+ event);
-    console.log(data);
-  });
+	
+		//GAME
+	socket.on('startGame', (room)=>{	//room = {roomID}
+		
+	})
+	
+	socket.on("*",function(event,data) {
+		console.log('[Event not handeled] : '+ event);
+		console.log(data);
+	});
 });
 
 
