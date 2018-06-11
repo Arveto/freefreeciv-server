@@ -32,7 +32,10 @@ function Room(id, name, players){
     }
 
     this.removePlayer = function(slot){
+        console.log("slot="+slot);
+        console.log("1)"+JSON.stringify(this.players));
         this.players.splice(slot, 1);
+        console.log("2)"+JSON.stringify(this.players));
 
         if(!this.isPlaying){
             //If the game is not in progress, fills the first slots first
