@@ -1,5 +1,4 @@
 
-
 const app = require('express')();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
@@ -40,6 +39,7 @@ rooms.push(new roomSystem.Room(0, "Ce genre de room", []));
 rooms[0].addPlayer(users[0].pseudo, 0, true, true);
 rooms[0].addPlayer(users[1].pseudo, 1, true, false);
 rooms[0].players[0].isHost = true;
+
 
 		//Socket.io (for mobile users)
 io.sockets.on('connection', function (socket) {
@@ -133,6 +133,7 @@ io.sockets.on('connection', function (socket) {
 		console.log(data);
 	});
 });
+
 
     //Vanilla websockets (for desktop users)
 const WebSocketServer = require('ws').Server;
