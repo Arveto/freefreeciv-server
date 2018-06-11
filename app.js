@@ -1,4 +1,5 @@
 
+
 const app = require('express')();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
@@ -17,7 +18,8 @@ const eventType= {MOVEMENT: 1,
     GAME_START: 11,
     MESSAGE: 12,
     ROOM_CREATION: 13,
-    DESTROY_ROOM: 14};
+    DESTROY_ROOM: 14,
+    CONNECTION: 15};
 
 
 var users = [];
@@ -35,9 +37,8 @@ users.push(user2);
 
 rooms.push(new roomSystem.Room(0, "Ce genre de room", []));
 
-rooms[0].addPlayer(users[0].pseudo, 0, false, false);
-rooms[0].addPlayer(users[1].pseudo, 1, false, false);
-//rooms[0].addPlayer(users[2].pseudo, 2, false, false);
+rooms[0].addPlayer(users[0].pseudo, 0, true, true);
+rooms[0].addPlayer(users[1].pseudo, 1, true, false);
 rooms[0].players[0].isHost = true;
 
 		//Socket.io (for mobile users)
@@ -133,35 +134,38 @@ io.sockets.on('connection', function (socket) {
 	});
 });
 
-
     //Vanilla websockets (for desktop users)
 const WebSocketServer = require('ws').Server;
 const wss = new WebSocketServer({server: server, port: 8080});
 
 wss.broadcast = function broadcast(msg) {
-   console.log(msg);
    wss.clients.forEach(function each(client) {
        client.send(msg);
     });
 };
 
+//Prepare general infos for all rooms
+var roomsData = new Array();
+for(let i=0; i<rooms.length; i++){
+    //if(!(rooms[i].isPlaying) && rooms[i].nPlayers < 4){
+        roomsData.push({id: rooms[i].id, name: rooms[i].name, nPlayers: rooms[i].players.length});
+        console.log("Pushiiing");
+    //}
+}
 
-  //GAME INNNER EVENTS
+let roomsList = {nRooms : roomsData.length, rooms: roomsData};
+
+
+
+  //GAME INNNER EVENTS (Lobby and game)
 wss.on('connection', function(ws) {
-console.log('connection');
 ws.on('message', function(data, flags) {
     console.log("[data]> " +data+"\n");
 
-
     switch (data){
-        case 'roomsRequest':{
-            var roomsData = new Array();
-            for(let i=0; i<rooms.length; i++){
-                roomsData.push({name: rooms[i].name, nPlayers: rooms[i].players.length});
-            }
-
-            let roomsList = {nRooms : rooms.length, rooms: roomsData};
+        case "roomsRequest":{
             ws.send(JSON.stringify(roomsList));
+            console.log(JSON.stringify(roomsList));
         }break;
 
 
@@ -169,41 +173,92 @@ ws.on('message', function(data, flags) {
             data = JSON.parse(data);
 
             switch (data.type){
+
+
+                //Just adding PC user to the user array
+                case eventType.CONNECTION:{
+                    let addedPlayer = false;
+
+                    //Looking for the user on mobile
+                    for(let i=0; i<users.length; i++){
+                        if(data.pseudo == users[i].pseudo){
+                            users[i].onDesktop = 1;
+                            addedPlayer = 0;
+                            break;
+                        }
+                    }
+
+                    //If the player was not on mobile, we add him on the list
+                    if(!addedPlayer){
+                        users.push( new roomSystem.User(data.pseudo, 0, 1, '') );
+                    }
+                }break;
+
+
                 case eventType.PLAYER_JOIN_ROOM:{
                     rooms[data.roomId].addPlayer(data.playerInfos.pseudo, rooms[data.roomId].players.length, false, false);
-
-                    //Broadcasts info about the new room state
-                    let roomInfos = {roomId: data.roomId, nPlayers: rooms[data.roomId].players.length, players: rooms[data.roomId].players};
-                    wss.broadcast(JSON.stringify(roomInfos));
+                     if(rooms[data.roomId].players[rooms[data.roomId].players.length-1].pseudo == "Purple"){
+                         rooms[data.roomId].players[rooms[data.roomId].players.length-1].isHost = 1;
+                     }
 
                     //Notice to refresh the lobby
-                    let joinRoomNotice = {type: eventType.PLAYER_JOIN_ROOM, roomId: data.roomId};
-                    wss.broadcast(JSON.stringify(joinRoomNotice));
+                    roomsData[data.roomId].nPlayers++;
+                    roomsList = {nRooms : roomsData.length, rooms: roomsData};
+                    wss.broadcast(JSON.stringify(roomsList));
+                    console.log("Broadcasting >" + JSON.stringify(roomsList));
+
+                    //Looks for host:
+                    for(let i=0; i<rooms[data.roomId].players.length; i++){
+                        if(rooms[data.roomId].players[i].isHost){
+                            var roomHost = rooms[data.roomId].players[i].pseudo;
+                        }
+                    }
+
+                    //Broadcasts info about the new room state (for players in that room)
+                    let roomInfos = {roomId: data.roomId, nPlayers: rooms[data.roomId].players.length, players: rooms[data.roomId].players, host: roomHost};
+                    wss.broadcast(JSON.stringify(roomInfos));
+
                 }break;
+
 
                 case eventType.PLAYER_LEAVE_ROOM:{
-                    rooms[data.roomId].removePlayer(data.slot);
+                    rooms[data.roomId].removePlayer(data.playerInfos.slot);
 
-                    //Broadcasts info about the new room state
+                    //Notice to refresh the lobby
+                    roomsData[data.roomId].nPlayers--;
+                    roomsList = {nRooms : roomsData.length, rooms: roomsData};
+                    wss.broadcast(JSON.stringify(roomsList));
+                    console.log("Broadcasting >" + JSON.stringify(roomsList));
+
+                    //Broadcasts info about the new room state (for players in that room)
                     let roomInfos = {roomId: data.roomId, nPlayers: rooms[data.roomId].players.length, players: rooms[data.roomId].players};
                     wss.broadcast(JSON.stringify(roomInfos));
 
-                    //Notice to refresh the lobby
-                    let leaveRoomNotice = {type: eventType.PLAYER_LEAVE_ROOM, roomId: data.roomId};
-                    wss.broadcast(JSON.stringify(leaveRoomNotice));
                 }break;
+
+
+                //All ingame events and game start (just need broadcast)
+                case eventType.MOVEMENT:
+                case eventType.ATTACK:
+                case eventType.CREATE_BARRACK:
+                case eventType.CREATE_PEASANT:
+                case eventType.CREATE_SOLDIER:
+                case eventType.HARVEST:
+                case eventType.END_TURN:
+                case eventType.GAME_START:{
+                    wss.broadcast(JSON.stringify(data));
+
+                    if(data.type == eventType.GAME_START){
+                        console.log("Starting Room"+data.roomId);
+                        rooms[data.roomId].isPlaying = 1;
+                    }
+
+                }break;
+
             }
         }
     }
 
-    // ws.send('{"type":9, "roomId": 0}');
-
-
-    //XXX Uncomment afterwards
-    //io.sockets.emit(data);
-
-
-    // ws.send('close');
   });
 
   ws.on('close', function() {
