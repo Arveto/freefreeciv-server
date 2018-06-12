@@ -12,11 +12,11 @@
     "socket.io": "",
     "socket.io-client": "",
     "websocket": "",
-    "pm2": "
+    "pm2": ""
   },
   "author": "terrus",
   "license": "Unlicense",
-  "scripts": {
-    "start": "node ./node_modules/.bin/pm2-runtime start app.js"
-  }
+    "scripts": {
+        "start": "node ./node_modules/.bin/pm2-runtime start app.js"
+    }
 }
