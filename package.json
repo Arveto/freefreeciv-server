@@ -11,8 +11,12 @@
     "ws": "",
     "socket.io": "",
     "socket.io-client": "",
-    "websocket": ""
+    "websocket": "",
+    "pm2": "
   },
   "author": "terrus",
-  "license": "Unlicense"
+  "license": "Unlicense",
+  "scripts": {
+    "start": "node ./node_modules/.bin/pm2-runtime start app.js"
+  }
 }
